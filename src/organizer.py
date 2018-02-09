@@ -1,5 +1,8 @@
 from pathlib import Path, PosixPath
 from typing import List
+import os
+import errno
+import shutil
 
 class OrganizerException(Exception):
     pass
@@ -84,7 +87,7 @@ class OrganizerInstance:
 
             if accepted:
                 copy_target_dir = self.out_dir / path_prefix
-                self.recursive_mkdir(copy_target_dir, dry_run=dry_run)
+                self.mkdir_p(copy_target_dir, dry_run=dry_run)
                 for file in files_to_copy:
                     self.copy(file.absolute(), self.out_dir / path_prefix, dry_run=dry_run)
                 print("Files copied successfully")
@@ -97,15 +100,21 @@ class OrganizerInstance:
             new_path_prefix = (path_prefix / ch_dir.name) if path_prefix else None
             self.parse_dir(ch_dir, dry_run, new_path_prefix)
 
-    def recursive_mkdir(self, path: Path, dry_run: bool):
-        # Add statistics
+    def mkdir_p(self, path: Path, dry_run: bool):
+        # TODO: Add statistics
         if dry_run:
             return
-        raise "Not implemented"
+        try:
+            os.makedirs(path)
+        except OSError as exc:
+            if exc.errno == errno.EEXIST or os.path.isdir(path):
+                pass
+            else:
+                raise exc
 
-    def copy(self, src_file: Path, trg_file: Path, dry_run: bool):
-        # Add statistics
+    def copy(self, src_file: Path, target: Path, dry_run: bool):
+        # TODO: Add statistics
         if dry_run:
             return
-        raise "Not implemented"
+        shutil.copy(src_file, target)
 
