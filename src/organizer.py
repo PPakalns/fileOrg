@@ -1,5 +1,6 @@
 from pathlib import Path, PosixPath
 from typing import List
+from enum import Enum
 import os
 import errno
 import shutil
@@ -7,22 +8,36 @@ import shutil
 class OrganizerException(Exception):
     pass
 
-def AcceptDialog(message="Please indicate approval [y/n/?]: "):
+class Answer(Enum):
+    YES = 0
+    NO = 1
+    SKIP = 2
+    LIST = 3
+
+def AcceptDialog(message="Please indicate approval [y/n/s/l/?]: ") -> Answer:
     print(message, end='')
     yes = ['yes', 'y']
     no = ['no', 'n']
-    q = ['?']
+    skip = ['s']
+    list_files = ['l']
+    q = ["?"]
 
     answ = ""
     while True:
         choice = input().lower()
         if choice in yes:
-            return True
+            return Answer.YES
         if choice in no:
-            return False
+            return Answer.NO
+        if choice in list_files:
+            return Answer.LIST
+        if choice in skip:
+            return Answer.SKIP
         if choice in q:
-            return None
-
+            print("\n\ty - yes"
+                  "\n\tn - no"
+                  "\n\ts - skip"
+                  "\n\tl - list files")
 
 class OrganizerInstance:
 
@@ -77,24 +92,27 @@ class OrganizerInstance:
                   f"\n\tfound {len(files_to_copy)} specified files!")
             print(f"Files will be copied to directory: \t {path_prefix}")
 
-            accepted = None
-            while accepted is None:
+            while True:
                 accepted = AcceptDialog()
-                if accepted is None:
+                if accepted == Answer.LIST:
                     print("The following files were found:")
                     for file in files_to_copy:
                         print(f"\t{file}")
-
-            if accepted:
-                copy_target_dir = self.out_dir / path_prefix
-                self.mkdir_p(copy_target_dir, dry_run=dry_run)
-                for file in files_to_copy:
-                    self.copy(file.absolute(), self.out_dir / path_prefix, dry_run=dry_run)
-                print("Files copied successfully")
-            else:
-                # Unset path prefix if this is determined to not be the root directory of specified files
-                if initialized_path_prefix:
-                    path_prefix = None
+                if accepted == Answer.YES:
+                    copy_target_dir = self.out_dir / path_prefix
+                    self.mkdir_p(copy_target_dir, dry_run=dry_run)
+                    for file in files_to_copy:
+                        self.copy(file.absolute(), self.out_dir / path_prefix, dry_run=dry_run)
+                    print("Files copied successfully")
+                    break
+                elif accepted == Answer.NO:
+                    # Unset path prefix if this is determined to not be the root directory of specified files
+                    if initialized_path_prefix:
+                        path_prefix = None
+                    break
+                elif accepted == Answer.SKIP:
+                    # Skip file copying and recursive directory parsing
+                    return
 
         for ch_dir in dirs_to_parse:
             new_path_prefix = (path_prefix / ch_dir.name) if path_prefix else None
